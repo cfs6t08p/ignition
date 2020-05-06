@@ -4,6 +4,7 @@
 #include "util.h"
 #include "boot.h"
 #include "led.h"
+#include "global.h"
 
 void charge_detect_setup() {
   TRISAbits.TRISA10 = 1; // CHG_DETECT
@@ -18,12 +19,11 @@ void charge_loop() {
   
   led_set_constant(BLED_R, 0);
   led_set_constant(BLED_B, 0);
-  led_set_constant(PLED_G, 250);
-  led_set_constant(PLED_R, 50);
-  
-  // TODO: show battery level
   
   while(charge_detect()) {
+    led_set_constant(PLED_G, (global.battery_level * 25) / 10);
+    led_set_constant(PLED_R, 250 - ((global.battery_level * 25) / 10));
+    
     // failsafe: hold power button while charging to enter bootloader
     if(PORTBbits.RB14) {
       safe_mode_count++;

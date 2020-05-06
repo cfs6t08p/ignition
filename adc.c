@@ -11,7 +11,9 @@ void __attribute__((interrupt, no_auto_psv)) _ADC1Interrupt() {
   global.touch[4] = ADC1BUF5;
   global.touch[5] = ADC1BUF6;
   global.touch[6] = ADC1BUF7;
-  global.battery_level = ADC1BUF8;
+  global.raw_battery = ADC1BUF8;
+  
+  AD1CON1bits.ADON = 0;
   
   IFS0bits.AD1IF = 0;
 }

@@ -3,7 +3,6 @@
 
 uint8_t bt_is_connected();
 void bt_shutdown();
-void bt_set_sensor(uint16_t data);
 void bt_send_packet(uint8_t type, void *data, uint16_t len);
 void bt_recv(char recv_char);
 void bt_idle();

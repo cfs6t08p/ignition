@@ -11,6 +11,7 @@
 #include "ign.h"
 #include "flash.h"
 #include "adc.h"
+#include "util.h"
 
 volatile struct global_data global;
 
@@ -48,20 +49,20 @@ void idle() {
   led_idle();
   flash_idle();
   
-  static uint32_t last_bt_update;
-  static uint16_t last_encoder_value;
+  static uint16_t last_battery_level;
   
-  uint32_t current_tick = global.tick_count;
+  uint16_t battery_level = global.battery_level;
   
-  if(current_tick > last_bt_update + 500) {
-    uint16_t encoder_value = global.encoder_count;
-    
-    if(encoder_value != last_encoder_value) {
-      bt_set_sensor(encoder_value);
+  if(last_battery_level != battery_level) {
+    if(battery_level < 30) {
+      led_set_constant(PLED_R, 250);
+      led_set_constant(PLED_G, 0);
+    } else if(battery_level < 15) {
+      led_set_pulsing(PLED_R, 2);
+      led_set_constant(PLED_G, 0);
     }
     
-    last_bt_update = current_tick;
-    last_encoder_value = encoder_value;
+    last_battery_level = battery_level;
   }
   
   if(charge_detect()) {
@@ -128,9 +129,7 @@ int main(void) {
       // spurious powerup or button was released early, wait a few seconds then turn off
       // back EMF from the motor can trigger the power mosfet if the holder is moved manually
       // turning off immediately can lead to repeated power cycling which may destroy the bluetooth module
-      volatile uint32_t off_delay = 5000000;
-
-      while(off_delay--) __builtin_clrwdt();
+      DELAY(5000000);
 
       pwr_off();
     }
@@ -165,7 +164,7 @@ int main(void) {
   
   ign_run();
   
-  // no app installed or returned from app
+  // no app installed
   led_set_constant(PLED_R, 0);
   led_set_pulsing(PLED_G, 2);
 

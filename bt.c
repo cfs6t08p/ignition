@@ -63,27 +63,15 @@ uint8_t bt_is_connected() {
 }
 
 void bt_shutdown() {
-  if(bt_connected) {
-    UART_WRITE_BLOCKING("K,1\r"); // force disconnect
-  }
+  UART_WRITE_BLOCKING("K,1\r"); // force disconnect
 }
 
-void bt_set_ctl(uint8_t status) {
-  if(bt_connected) {
-    UART_WRITE_CMD2("SHW", &bt_handles[BT_HANDLE_CTL], 2, &status, 1);
-  }
+static void bt_set_ctl(uint8_t status) {
+  UART_WRITE_CMD2("SHW", &bt_handles[BT_HANDLE_CTL], 2, &status, 1);
 }
 
-void bt_set_data(void *data, uint16_t len) {
-  if(bt_connected) {
-    UART_WRITE_CMD2("SHW", &bt_handles[BT_HANDLE_DATA], 2, data, len);
-  }
-}
-
-void bt_set_sensor(uint16_t data) {
-  if(bt_connected) {
-    UART_WRITE_CMD2("SHW", &bt_handles[BT_HANDLE_SENSOR], 2, &data, 2);
-  }
+static void bt_set_data(void *data, uint16_t len) {
+  UART_WRITE_CMD2("SHW", &bt_handles[BT_HANDLE_DATA], 2, data, len);
 }
 
 void bt_send_packet(uint8_t type, void *data, uint16_t len) {
@@ -189,7 +177,7 @@ static void bt_status2(char *status, uint16_t length, char *p1, uint16_t p1_len,
         if(last_ctl == 3) { // get execution mode
           uint8_t mode[2] = { 0x00, 0x01 };
           
-          mode[0] = 50; // TODO: battery level
+          mode[0] = global.battery_level;
           
           bt_set_data(mode, 2);
           bt_set_ctl(2);
@@ -197,12 +185,14 @@ static void bt_status2(char *status, uint16_t length, char *p1, uint16_t p1_len,
         } else if(last_ctl == 5) { // get version
           uint8_t version[12] = { 0x00, 0x00, 0x00, 0x9B, 0x01, 0x01, 0x00, 0x00, 0x00, 0xEB, 0x01, 0x03 };
           
-          // TODO: fetch data from flash
-          
           bt_set_data(version, 12);
           bt_set_ctl(2);
         } else if(last_ctl == 6) { // set execution mode
           bt_shutdown();
+          
+          // wait for disconnect
+          DELAY(500000);
+          
           enter_bootloader();
         } else if(last_ctl == 7) { // get CRC
           uint16_t crc = read_crc();

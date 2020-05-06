@@ -90,7 +90,7 @@ static void ign_send_packet(void *data, uint16_t len) {
 }
 
 static uint8_t ign_get_battery_level() {
-  return 50; // TODO
+  return global.battery_level;
 }
 
 static uint16_t ign_get_api_errors() {
@@ -105,20 +105,6 @@ static uint16_t ign_get_motor_current() {
   return global.motor_current;
 }
 
-static uint16_t ign_get_raw_battery_level() {
-  return global.battery_level;
-}
-
-static uint16_t ign_get_touch_data(uint8_t channel) {
-  if(channel < 7) {
-    return global.touch[channel];
-  } else {
-    global.ign_api_errors++;
-    
-    return 0;
-  }
-}
-
 static void ign_idle() {
   idle();
 }
@@ -128,6 +114,7 @@ static void ign_set_handler(ign_handler_t handler) {
 }
 
 const struct __attribute__ ((space(psv))) ign_call_table _IGN_CALL_TABLE = {
+  IGN_VERSION,
   ign_get_tick_count,
   ign_get_encoder_count,
   ign_motor_stop,
@@ -144,8 +131,6 @@ const struct __attribute__ ((space(psv))) ign_call_table _IGN_CALL_TABLE = {
   ign_get_api_errors,
   ign_get_ctl_errors,
   ign_get_motor_current,
-  ign_get_raw_battery_level,
-  ign_get_touch_data,
   ign_idle,
   ign_set_handler,
 };

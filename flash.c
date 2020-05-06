@@ -6,6 +6,7 @@
 #include "util.h"
 #include "global.h"
 #include "led.h"
+#include "boot.h"
 
 uint32_t read_flash_word(void *addr) {
   return (uint32_t)__builtin_tblrdl((int)addr) | ((uint32_t)__builtin_tblrdh((int)addr) << 16);
@@ -69,7 +70,8 @@ struct __attribute__((packed)) flash_packet {
     } __attribute__((packed)) getblock;
     
     struct {
-      uint8_t segment;
+      uint8_t segment:4;
+      uint8_t blocknum:4;
       uint8_t data[SEGMENT_WORDS * 3];
     } __attribute__((packed)) blockdata;
     
@@ -112,7 +114,8 @@ void flash_idle() {
   if(update_started) {
     update_started = 0;
     
-    led_set_pulsing(PLED_G, 0);
+    led_set_constant(PLED_R, 0);
+    led_set_pulsing(PLED_G, 1);
     
     flash_erase_app();
     
@@ -129,7 +132,7 @@ void flash_idle() {
       // request all missing segments from current block
       bt_send_packet(FLASH_PACKET_GETBLOCK, &packet, sizeof(packet));
       
-      uint32_t timeout = global.tick_count + 1000;
+      uint32_t timeout = global.tick_count + 5000;
       
       while(global.tick_count < timeout) {
         __builtin_clrwdt();
@@ -171,14 +174,17 @@ void flash_idle() {
       bt_send_packet(FLASH_PACKET_SUCCESS, &packet, sizeof(packet));
       
       // wait for success packet to be sent
-      volatile uint32_t delay = 500000;
-      
-      while(delay--) __builtin_clrwdt();
+      DELAY(500000);
       
       bt_shutdown();
       
+      // wait for disconnect
+      DELAY(500000);
+      
       // update complete, write signature & reset
       write_flash_word(&_IGN_SIGNATURE, 0x1671);
+      
+      modelock();
 
       __asm__ volatile ("reset");
     } else {
@@ -200,7 +206,7 @@ void flash_handle_packet(uint8_t type, void *data, uint16_t len) {
         update_started = 1;
       }
     } else if(type == FLASH_PACKET_BLOCKDATA) {
-      if(input->blockdata.segment < 11) {
+      if(input->blockdata.segment < 11 && input->blockdata.blocknum == (current_block & 0xF)) {
         received_segments |= 1 << input->blockdata.segment;
         
         uint16_t block_offset = input->blockdata.segment * SEGMENT_WORDS;

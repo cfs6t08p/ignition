@@ -5,6 +5,7 @@
 #define MOTOR_STATE_CW 1
 #define MOTOR_STATE_CCW 2
 #define MOTOR_STATE_BRAKE 3
+#define MOTOR_STATE_ESTOP 4
 
 struct global_data {
   uint32_t tick_count;
@@ -18,7 +19,8 @@ struct global_data {
   
   uint16_t motor_current;
   uint16_t touch[7];
-  uint16_t battery_level;
+  uint16_t raw_battery;
+  uint8_t battery_level;
 };
 
 extern volatile struct global_data global;

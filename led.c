@@ -29,7 +29,7 @@ void led_set_pulsing(uint16_t led, uint8_t rate) {
 }
 
 void led_idle() {
-  static uint32_t last_led_tick;
+  static uint32_t last_led_tick = -1;
   static uint8_t led_state[4];
   
   uint32_t tick = global.tick_count;
