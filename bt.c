@@ -56,6 +56,10 @@ static uint8_t bt_init_seq; // initialization sequence
 static uint16_t bt_handles_found;
 static uint16_t bt_handles[BT_NUM_HANDLES];
 
+static uint16_t connection_interval;
+static uint16_t requested_interval;
+static uint32_t connected_tick;
+
 static const char bt_handle_id[BT_NUM_HANDLES] = { '1', '2', '3', 'C', 'D' };
 
 uint8_t bt_is_connected() {
@@ -160,7 +164,15 @@ static void bt_status2(char *status, uint16_t length, char *p1, uint16_t p1_len,
   if(!strncmp(status, "CONNECT", length)) {
     bt_connected = 1;
     
-    led_set_constant(BLED_B, 255);
+    led_set_constant(BLED_B, 250);
+    
+    connected_tick = global.tick_count;
+    connection_interval = 0;
+    
+    UART_WRITE_STR("T,000C,000C,0000,0200\r");
+    requested_interval = 12;
+  } else if(!strncmp(status, "CONN_PARAM", length) && p1_len == 2) {
+    connection_interval = p1[1] | (p1[0] << 8);
   } else if(!strncmp(status, "WV", length) && p1_len == 2) {
     uint16_t handle = *((uint16_t *)p1);
     
@@ -188,6 +200,14 @@ static void bt_status2(char *status, uint16_t length, char *p1, uint16_t p1_len,
           bt_set_data(version, 12);
           bt_set_ctl(2);
         } else if(last_ctl == 6) { // set execution mode
+          // reset connection parameters
+          // bootloader does not work with shortest interval
+          // workaround for Windows 10
+          UART_WRITE_STR("T,0010,0010,0000,0200\r");
+          
+          // wait for connection parameter update
+          DELAY(500000);
+          
           bt_shutdown();
           
           // wait for disconnect
@@ -331,6 +351,33 @@ void bt_idle() {
   
   if(uart_read(&recv_char, 1)) {
     bt_recv(recv_char);
+  }
+  
+  if(connected_tick) {
+    uint32_t diff = global.tick_count - connected_tick;
+    
+    // try to negotiate down connection interval
+    if(requested_interval == 12 && diff > 200) {
+      UART_WRITE_STR("T,0009,0009,0000,0200\r");
+      requested_interval = 9;
+    } else if(requested_interval == 9 && diff > 300) {
+      UART_WRITE_STR("T,0006,0006,0000,0200\r");
+      requested_interval = 0;
+    }
+    
+    // blink once for each 3.75ms over 7.5ms
+    // no blink == 7.5ms
+    // 1 blink <= 11.25ms
+    // 2 blinks <= 15ms
+    // etc
+    if(diff > 1000 && connection_interval) {
+      led_set_constant(BLED_B, ((diff - 1000) & 0x80) ? 0 : 250);
+      
+      if(diff > 1000 + 0x100 * ((connection_interval - 4) / 3)) {
+        connected_tick = 0;
+        led_set_constant(BLED_B, 250);
+      }
+    }
   }
 }
 
