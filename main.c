@@ -53,12 +53,12 @@ void idle() {
   
   uint16_t battery_level = global.battery_level;
   
-  if(last_battery_level != battery_level) {
-    if(battery_level < 30) {
-      led_set_constant(PLED_R, 250);
-      led_set_constant(PLED_G, 0);
-    } else if(battery_level < 15) {
+  if(battery_level < last_battery_level) {
+    if(battery_level < 15) {
       led_set_pulsing(PLED_R, 2);
+      led_set_constant(PLED_G, 0);
+    } else if(battery_level < 30) {
+      led_set_constant(PLED_R, 250);
       led_set_constant(PLED_G, 0);
     }
     
